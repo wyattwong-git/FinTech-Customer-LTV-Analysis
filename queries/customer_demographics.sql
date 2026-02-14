@@ -2,19 +2,13 @@
 SELECT * FROM fintech_ltv;
 
 --# Find The Top 10 Highest LTV Demographics
-SELECT 
-    age,
-    location,
-    income_level
+SELECT *
 FROM fintech_ltv
 ORDER BY ltv DESC
 LIMIT 10; 
 
 --# Find The Top 10 Lowest LTV Demographics
-SELECT 
-    age,
-    location,
-    income_level
+SELECT *
 FROM fintech_ltv
 ORDER BY ltv
 LIMIT 10; 

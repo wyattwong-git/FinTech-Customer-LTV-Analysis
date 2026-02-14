@@ -1,25 +1,3 @@
---# Find The Top 10 Highest LTV Spending Behaviour
-SELECT 
-    total_transactions,
-    avg_transaction_value,
-    min_transaction_value,
-    max_transaction_value,
-    total_spent
-FROM fintech_ltv
-ORDER BY ltv DESC
-LIMIT 10; 
-
---# Find The Top 10 Lowest LTV Spending Behaviour
-SELECT 
-    total_transactions,
-    avg_transaction_value,
-    min_transaction_value,
-    max_transaction_value,
-    total_spent
-FROM fintech_ltv
-ORDER BY ltv
-LIMIT 10; 
-
 --# Find The Customer's Average Total Transactions and Total Spent by Income Level
 SELECT 
     income_level,
@@ -100,7 +78,7 @@ ORDER BY transaction_difference DESC;
 
 --# Find the Elite Customers (Top 10% in Total Spent, Total Transactions, and Average Transaction Value)
 --# Try to retain all these customers.
-SELECT COUNT(*)
+SELECT *
 FROM (
     SELECT
         total_transactions,
