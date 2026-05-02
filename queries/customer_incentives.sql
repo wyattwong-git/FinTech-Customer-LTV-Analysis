@@ -1,4 +1,8 @@
---# Find the Ratio of Cashback to Total Spent vs. LTV
+-- ============================================================
+-- SECTION 4: INCENTIVES (Q3 — How do incentives impact LTV?)
+-- ============================================================
+
+-- Find the Ratio of Cashback to Total Spent vs. LTV
 WITH cashback_per_spent AS (
     SELECT
         cashback_received,
@@ -13,7 +17,7 @@ FROM cashback_per_spent
 WHERE cashback_per_dollar_spent > 0.05
 ORDER BY cashback_per_dollar_spent DESC;
 
---# Find Ratio of Loyalty Points to Total Spent vs. LTV
+-- Find Ratio of Loyalty Points to Total Spent vs. LTV
 WITH loyalty_per_spent AS (
     SELECT
         loyalty_points_earned,
@@ -28,7 +32,7 @@ FROM loyalty_per_spent
 WHERE loyalty_per_dollar_spent > 0.05
 ORDER BY loyalty_per_dollar_spent DESC;
 
---# Find the Average Total Spent for each Loyalty Points Earned Tier
+-- Find the Average Total Spent for each Loyalty Points Earned Tier
 SELECT
     CASE
         WHEN loyalty_points_earned BETWEEN 0 AND 1000 THEN '0 - 1000'
@@ -43,7 +47,7 @@ FROM fintech_ltv
 GROUP BY loyalty_groups
 ORDER BY avg_transaction DESC;
 
---# Find the Average Total Spent for each Cashback Received Tier
+-- Find the Average Total Spent for each Cashback Received Tier
 SELECT
     CASE
         WHEN cashback_received BETWEEN 0 AND 20 THEN '0 - 20'
@@ -57,7 +61,7 @@ FROM fintech_ltv
 GROUP BY cashback_groups
 ORDER BY avg_transaction DESC;
 
---# Find the Average Total Spent for each Referral Count Tier
+-- Find the Average Total Spent for each Referral Count Tier
 SELECT
     CASE
         WHEN referral_count BETWEEN 0 AND 10 THEN '0 - 10'
@@ -72,7 +76,7 @@ FROM fintech_ltv
 GROUP BY referral_groups
 ORDER BY avg_transaction DESC;
 
---# Find Users who are in the top 10% for both Cashback Received and Loyalty Points Earned
+-- Find Users who are in the top 10% for both Cashback Received and Loyalty Points Earned
 SELECT *
 FROM (
     SELECT
@@ -88,7 +92,7 @@ WHERE cashback_quartile = 1
     AND loyalty_quartile = 1
     AND ltv_quartile = 1;
 
---# Find Users who acquire the most referrals and calculate a "Total Network Value" by adding a bonus to a customer's LTV for every referral count)
+-- Find Users who acquire the most referrals — "Total Network Value"
 WITH network_value AS (
     SELECT
         ltv,
@@ -100,3 +104,38 @@ WITH network_value AS (
 SELECT *,
     RANK() OVER (ORDER BY total_network_value DESC) AS network_rank
 FROM network_value;
+
+-- Do incentives correlate with LTV, or do high spenders simply accumulate more rewards?
+-- Compare incentive density (rewards per dollar spent) across LTV quartiles
+SELECT
+    NTILE(4) OVER (ORDER BY ltv) AS ltv_quartile,
+    ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
+    ROUND(AVG(cashback_received)::NUMERIC, 4) AS avg_cashback,
+    ROUND(AVG(loyalty_points_earned)::NUMERIC, 2) AS avg_loyalty_pts,
+    ROUND(AVG(referral_count)::NUMERIC, 2) AS avg_referrals,
+    -- Incentive density: rewards per $1 spent (are higher-LTV customers earning proportionally more or less?)
+    ROUND((AVG(cashback_received) / NULLIF(AVG(total_spent), 0))::NUMERIC, 4) AS cashback_per_dollar,
+    ROUND((AVG(loyalty_points_earned) / NULLIF(AVG(total_spent), 0))::NUMERIC, 4) AS loyalty_per_dollar
+FROM (
+    SELECT *, NTILE(4) OVER (ORDER BY ltv) AS ltv_q FROM fintech_ltv
+) t
+GROUP BY ltv_quartile
+ORDER BY ltv_quartile DESC;
+
+-- Referral ROI — do customers with high referral counts have meaningfully higher LTV?
+-- This tests if the referral programme produces high-value customers.
+SELECT
+    CASE
+        WHEN referral_count = 0 THEN '0 Referrals'
+        WHEN referral_count BETWEEN 1 AND 10 THEN '1 - 10'
+        WHEN referral_count BETWEEN 11 AND 25 THEN '11 - 25'
+        WHEN referral_count BETWEEN 26 AND 40 THEN '26 - 40'
+        ELSE '41+'
+    END AS referral_tier,
+    COUNT(*) AS customer_count,
+    ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
+    ROUND(AVG(total_spent)::NUMERIC, 2) AS avg_total_spent,
+    ROUND(AVG(total_transactions)::NUMERIC, 2) AS avg_transactions
+FROM fintech_ltv
+GROUP BY referral_tier
+ORDER BY avg_ltv DESC;

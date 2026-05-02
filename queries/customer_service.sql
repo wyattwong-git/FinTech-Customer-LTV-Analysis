@@ -1,4 +1,8 @@
---# Find the Average LTV for each Support Tickets Raised to identify where LTV drops off
+-- ============================================================
+-- SECTION 5: CUSTOMER SERVICE (Q3 continued — Does service quality impact LTV?)
+-- ============================================================
+
+-- Find the Average LTV for each Support Tickets Raised group
 SELECT
     CASE
         WHEN support_tickets_raised BETWEEN 0 AND 5 THEN '0 - 5'
@@ -14,7 +18,7 @@ FROM fintech_ltv
 GROUP BY support_groups
 ORDER BY avg_ltv DESC;
 
---# Find which customers have an LTV that is below the median but a Support Tickets Raised count that is in the top 10%
+-- Find customers with LTV below median but Support Tickets in the top 10%
 SELECT *
 FROM (
     SELECT
@@ -26,7 +30,7 @@ WHERE support_quartile = 1
     AND ltv < (SELECT AVG(ltv) FROM fintech_ltv)
 ORDER BY ltv DESC;
 
---# Find the Average LTV for each Issue Resolution Time to identify where LTV drops off
+-- Find the Average LTV for each Issue Resolution Time group
 SELECT
     CASE
         WHEN issue_resolution_time BETWEEN 0 AND 10 THEN '0 - 10'
@@ -45,7 +49,7 @@ FROM fintech_ltv
 GROUP BY resolution_groups
 ORDER BY avg_ltv DESC;
 
---# Find how many customers for each Customer Satisfaction Score but have never raised a support ticket
+-- Find how many customers for each Customer Satisfaction Score who have never raised a support ticket
 SELECT
     CASE
         WHEN customer_satisfaction_score = 0 THEN '0'
@@ -64,9 +68,9 @@ SELECT
 FROM fintech_ltv
 WHERE support_tickets_raised = 0
 GROUP BY satisfaction_groups
-ORDER BY customers_count DESC;  
+ORDER BY customers_count DESC;
 
---# Find how satisfied frequent app users are with the service by measuring Customer Satisfaction Score and Support Tickets Raised for each customer
+-- Find how satisfied frequent app users are with the service
 SELECT
     CASE
         WHEN app_usage_frequency = 'Daily' THEN 'Daily'
@@ -81,7 +85,7 @@ FROM fintech_ltv
 GROUP BY app_frequency_groups
 ORDER BY avg_ltv DESC;
 
---# Find the average Issue Resolution Time per total spent for each customer and classify them
+-- Find the average Issue Resolution Time per total spent
 WITH resolution_time_per_spent AS (
     SELECT
         support_tickets_raised,
@@ -97,3 +101,48 @@ SELECT *
 FROM resolution_time_per_spent
 WHERE resolution_time_per_dollar_spent > 0.05
 ORDER BY resolution_time_per_dollar_spent DESC;
+
+-- Key insight — does customer satisfaction score PREDICT LTV, or is it independent?
+-- Cross-tabulation of satisfaction score vs. LTV quartile
+SELECT
+    NTILE(4) OVER (ORDER BY ltv) AS ltv_quartile_num,
+    ROUND(AVG(customer_satisfaction_score)::NUMERIC, 2) AS avg_satisfaction,
+    ROUND(AVG(support_tickets_raised)::NUMERIC, 2) AS avg_tickets,
+    ROUND(AVG(issue_resolution_time)::NUMERIC, 2) AS avg_resolution_time,
+    ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
+    COUNT(*) AS customer_count
+FROM (SELECT *, NTILE(4) OVER (ORDER BY ltv) AS ltv_q FROM fintech_ltv) t
+GROUP BY ltv_quartile_num
+ORDER BY ltv_quartile_num DESC;
+
+-- Service burden index — customers who are costly to serve relative to their LTV
+-- Flags customers generating high support load while contributing low LTV
+SELECT
+    customer_id,
+    ltv,
+    support_tickets_raised,
+    issue_resolution_time,
+    customer_satisfaction_score,
+    total_spent,
+    ROUND((support_tickets_raised * issue_resolution_time)::NUMERIC, 2) AS service_burden_score,
+    NTILE(4) OVER (ORDER BY ltv) AS ltv_quartile
+FROM fintech_ltv
+WHERE support_tickets_raised > 15
+ORDER BY service_burden_score DESC
+LIMIT 20;
+
+-- The "silent churner" — customers with high LTV, low satisfaction, and long time since last transaction
+-- Priority list for proactive outreach
+SELECT
+    customer_id,
+    ltv,
+    customer_satisfaction_score,
+    last_transaction_days_ago,
+    support_tickets_raised,
+    app_usage_frequency,
+    total_spent
+FROM fintech_ltv
+WHERE customer_satisfaction_score <= 4
+    AND last_transaction_days_ago > 90
+    AND ltv > (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ltv) FROM fintech_ltv)
+ORDER BY ltv DESC;

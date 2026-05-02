@@ -1,4 +1,8 @@
---# Find the Customer's Average Active Days, Last Transaction Days Ago, LTV by App Usage Frequency
+-- ============================================================
+-- SECTION 3: ENGAGEMENT (Q2 continued — How does engagement shape LTV?)
+-- ============================================================
+
+-- Find the Customer's Average Active Days, Last Transaction Days Ago, LTV by App Usage Frequency
 SELECT
     app_usage_frequency,
     AVG(active_days) AS avg_activity,
@@ -8,7 +12,7 @@ FROM fintech_ltv
 GROUP BY app_usage_frequency
 ORDER BY avg_ltv DESC;
 
---# Find the Customer's Average Active Days, Last Transaction Days Ago, LTV by Preferred Payment Method
+-- Find the Customer's Average Active Days, Last Transaction Days Ago, LTV by Preferred Payment Method
 SELECT
     preferred_payment_method,
     AVG(active_days) AS avg_activity,
@@ -18,7 +22,7 @@ FROM fintech_ltv
 GROUP BY preferred_payment_method
 ORDER BY avg_ltv DESC;
 
---# Find the Average Active Days and Spending Data by Last Transaction Days Ago Groups
+-- Find the Average Active Days and Spending Data by Last Transaction Days Ago Groups
 SELECT
     CASE
         WHEN last_transaction_days_ago BETWEEN 1 AND 30 THEN 'Less Than a Month'
@@ -36,7 +40,7 @@ FROM fintech_ltv
 GROUP BY last_transaction_groups
 ORDER BY avg_activity DESC;
 
---# Find the Average Last Transaction Days Ago and Spending Data by Active Days Groups
+-- Find the Average Last Transaction Days Ago and Spending Data by Active Days Groups
 SELECT
     CASE
         WHEN active_days BETWEEN 1 AND 30 THEN 'Less Than a 30 Days'
@@ -54,8 +58,7 @@ FROM fintech_ltv
 GROUP BY activity_groups
 ORDER BY avg_activity DESC;
 
---# Find Customer's Total Spent per Active Days Ratio
---# These customers are elite spenders and digital wallets should market towards these users to increase activity.
+-- Find Customer's Total Spent per Active Days Ratio (Elite Spenders >$2,500/Day)
 WITH ratio_per_active_day AS (
     SELECT
         app_usage_frequency,
@@ -68,14 +71,11 @@ WITH ratio_per_active_day AS (
     FROM fintech_ltv
     WHERE active_days > 50
 )
---# Find the Customer's that are the Highest Spenders per Active Day (>$2500/Day)
-SELECT
-    *
+SELECT *
 FROM ratio_per_active_day
 WHERE spent_per_day > 2500.0;
 
---# Find Customer's Total Transactions per Active Days Ratio
---# These customers are high activity users and digital wallets should focus incentives to these users to increase spending.
+-- Find Customer's Total Transactions per Active Days Ratio (High Activity Users >10/Day)
 WITH ratio_per_active_day AS (
     SELECT
         app_usage_frequency,
@@ -88,8 +88,57 @@ WITH ratio_per_active_day AS (
     FROM fintech_ltv
     WHERE active_days > 50
 )
---# Find the Customer's that are the Highest Transactors per Active Day (>10/Day)
-SELECT
-    *
+SELECT *
 FROM ratio_per_active_day
 WHERE transaction_per_day > 10.0;
+
+-- Recency risk — find recently dormant customers with high LTV (churn risk)
+-- These are customers the wallet should immediately re-engage
+SELECT
+    customer_id,
+    ltv,
+    last_transaction_days_ago,
+    total_spent,
+    active_days,
+    app_usage_frequency
+FROM fintech_ltv
+WHERE last_transaction_days_ago > 180
+    AND ltv > (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY ltv) FROM fintech_ltv)
+ORDER BY ltv DESC
+LIMIT 20;
+
+-- Recency × Frequency × Monetary (RFM) segmentation
+-- Segments customers into actionable buckets for targeted campaigns
+WITH rfm_scores AS (
+    SELECT
+        customer_id,
+        ltv,
+        total_spent,
+        total_transactions,
+        last_transaction_days_ago,
+        NTILE(5) OVER (ORDER BY last_transaction_days_ago ASC) AS recency_score,   -- Lower days = more recent = higher score
+        NTILE(5) OVER (ORDER BY total_transactions DESC) AS frequency_score,
+        NTILE(5) OVER (ORDER BY total_spent DESC) AS monetary_score
+    FROM fintech_ltv
+),
+rfm_labeled AS (
+    SELECT *,
+        recency_score + frequency_score + monetary_score AS rfm_total
+    FROM rfm_scores
+)
+SELECT
+    CASE
+        WHEN rfm_total >= 13 THEN '⭐ Champions'
+        WHEN rfm_total >= 10 THEN '✅ Loyal Customers'
+        WHEN rfm_total >= 7  THEN '🔄 Potential Loyalists'
+        WHEN rfm_total >= 5  THEN '⚠️  At Risk'
+        ELSE '❌ Lost Customers'
+    END AS rfm_segment,
+    COUNT(*) AS customer_count,
+    ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
+    ROUND(AVG(total_spent)::NUMERIC, 2) AS avg_total_spent,
+    ROUND(AVG(total_transactions)::NUMERIC, 2) AS avg_transactions,
+    ROUND(AVG(last_transaction_days_ago)::NUMERIC, 2) AS avg_days_since_last
+FROM rfm_labeled
+GROUP BY rfm_segment
+ORDER BY avg_ltv DESC;

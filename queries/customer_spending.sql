@@ -1,5 +1,9 @@
---# Find The Customer's Average Total Transactions and Total Spent by Income Level
-SELECT 
+-- ============================================================
+-- SECTION 2: SPENDING (Q2 — What spending patterns drive LTV?)
+-- ============================================================
+
+-- Find The Customer's Average Total Transactions and Total Spent by Income Level
+SELECT
     income_level,
     COUNT(income_level),
     AVG(total_transactions) AS avg_transactions,
@@ -7,15 +11,15 @@ SELECT
 FROM fintech_ltv
 GROUP BY income_level;
 
---# Find The Customer's Max Average Transaction by Location
-SELECT 
+-- Find The Customer's Max Average Transaction by Location
+SELECT
     location,
     AVG(min_transaction_value) AS avg_min_transaction_value,
     AVG(max_transaction_value) AS avg_max_transaction_value
 FROM fintech_ltv
 GROUP BY location;
 
---# Find The Customer's Average Spending Value by Total Transaction Groups
+-- Find The Customer's Average Spending Value by Total Transaction Groups
 SELECT
     CASE
         WHEN total_transactions BETWEEN 0 AND 100 THEN '0 - 100'
@@ -38,27 +42,25 @@ FROM fintech_ltv
 GROUP BY total_transactions_groups
 ORDER BY avg_transaction DESC;
 
---# Find The Customers with High LTV but Low Total Transactions
---# These are the customers worth retaining. (NO CUSTOMER DATA FOUND)
-SELECT 
+-- Find The Customers with High LTV but Low Total Transactions
+-- These are the customers worth retaining. (NO CUSTOMER DATA FOUND — confirms transactions drive LTV)
+SELECT
     total_transactions,
     ltv
 FROM fintech_ltv
 WHERE total_transactions < 200 AND ltv > 750000.0;
 
---# Find The Customers with Low LTV but High Total Transactions
---# These are the customers not worth retaining, but worth targeting incentives to spent more for them.
-SELECT 
+-- Find The Customers with Low LTV but High Total Transactions
+-- These are the customers not worth retaining, but worth targeting incentives to spend more.
+SELECT
     total_transactions,
     ltv
 FROM fintech_ltv
 WHERE total_transactions > 800 AND ltv < 150000.0;
 
---# Find the Spending Value Consistency of A Customer by Calculating the Average Between the Max and Min Difference.
---# Filter users who have a higher difference than the average to determine who is using the wallet to store large amounts.
---# These users are worth targeting to spend more frequently.
+-- Find the Spending Value Consistency by Calculating the Average Between Max and Min Difference
 WITH diff AS (
-    SELECT 
+    SELECT
         total_transactions,
         max_transaction_value,
         min_transaction_value,
@@ -76,8 +78,7 @@ FROM with_avg
 WHERE transaction_difference > avg_transaction_diff
 ORDER BY transaction_difference DESC;
 
---# Find the Elite Customers (Top 10% in Total Spent, Total Transactions, and Average Transaction Value)
---# Try to retain all these customers.
+-- Find the Elite Customers (Top 10% in Total Spent, Total Transactions, and Average Transaction Value)
 SELECT *
 FROM (
     SELECT
@@ -92,3 +93,51 @@ FROM (
 WHERE transaction_quartile = 1
     AND avg_quartile = 1
     AND spent_quartile = 1;
+
+-- Identify the two levers of LTV — transaction volume vs. transaction value
+-- High transaction COUNT customers vs. high transaction VALUE customers
+SELECT
+    CASE
+        WHEN transaction_rank <= 700 AND value_rank <= 700 THEN 'Elite: High Volume & High Value'
+        WHEN transaction_rank <= 700 AND value_rank > 700  THEN 'High Volume, Lower Value'
+        WHEN transaction_rank > 700  AND value_rank <= 700 THEN 'Lower Volume, High Value'
+        ELSE 'Average'
+    END AS customer_type,
+    COUNT(*) AS customer_count,
+    ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
+    ROUND(AVG(total_transactions)::NUMERIC, 2) AS avg_transactions,
+    ROUND(AVG(avg_transaction_value)::NUMERIC, 2) AS avg_txn_value,
+    ROUND(AVG(total_spent)::NUMERIC, 2) AS avg_total_spent
+FROM (
+    SELECT *,
+        RANK() OVER (ORDER BY total_transactions DESC) AS transaction_rank,
+        RANK() OVER (ORDER BY avg_transaction_value DESC) AS value_rank
+    FROM fintech_ltv
+) AS ranked
+GROUP BY customer_type
+ORDER BY avg_ltv DESC;
+
+-- Spending velocity — total spent per active day (identifies elite spenders regardless of tenure)
+-- Use this to find customers spending far above their activity level
+SELECT
+    NTILE(4) OVER (ORDER BY CAST(total_spent AS DECIMAL) / NULLIF(active_days, 0)) AS velocity_quartile,
+    ROUND(AVG(CAST(total_spent AS DECIMAL) / NULLIF(active_days, 0))::NUMERIC, 2) AS avg_spent_per_day,
+    ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
+    ROUND(AVG(total_transactions)::NUMERIC, 2) AS avg_transactions,
+    ROUND(AVG(active_days)::NUMERIC, 2) AS avg_active_days
+FROM fintech_ltv
+GROUP BY velocity_quartile
+ORDER BY velocity_quartile DESC;
+
+-- Preferred payment method impact on spending behaviour
+-- Reveals which payment rail drives the most value
+SELECT
+    preferred_payment_method,
+    COUNT(*) AS customer_count,
+    ROUND(AVG(total_transactions)::NUMERIC, 2) AS avg_transactions,
+    ROUND(AVG(avg_transaction_value)::NUMERIC, 2) AS avg_txn_value,
+    ROUND(AVG(total_spent)::NUMERIC, 2) AS avg_total_spent,
+    ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv
+FROM fintech_ltv
+GROUP BY preferred_payment_method
+ORDER BY avg_ltv DESC;
