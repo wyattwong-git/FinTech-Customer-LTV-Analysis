@@ -131,18 +131,19 @@ WHERE support_tickets_raised > 15
 ORDER BY service_burden_score DESC
 LIMIT 20;
 
--- The "silent churner" — customers with high LTV, low satisfaction, and long time since last transaction
+-- The "silent churner" — Find the top 50 customers most at risk of silent churn, ranked by a composite risk score
 -- Priority list for proactive outreach
-SELECT
-    customer_id,
-    ltv,
-    customer_satisfaction_score,
-    last_transaction_days_ago,
-    support_tickets_raised,
-    app_usage_frequency,
-    total_spent
-FROM fintech_ltv
-WHERE customer_satisfaction_score <= 4
-    AND last_transaction_days_ago > 90
-    AND ltv > (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ltv) FROM fintech_ltv)
-ORDER BY ltv DESC;
+WITH scored AS (
+    SELECT
+        customer_id, ltv, last_transaction_days_ago, customer_satisfaction_score,
+        PERCENT_RANK() OVER (ORDER BY last_transaction_days_ago DESC) AS dormancy_rank,
+        PERCENT_RANK() OVER (ORDER BY ltv DESC) AS ltv_rank,
+        PERCENT_RANK() OVER (ORDER BY customer_satisfaction_score ASC) AS dissatisfaction_rank
+    FROM fintech_ltv
+)
+SELECT *,
+    ROUND((0.40 * dormancy_rank + 0.35 * ltv_rank + 0.25 * dissatisfaction_rank)::NUMERIC, 4)
+        AS churn_risk_score
+FROM scored
+ORDER BY churn_risk_score DESC
+LIMIT 50;
