@@ -108,7 +108,7 @@ FROM network_value;
 -- Do incentives correlate with LTV, or do high spenders simply accumulate more rewards?
 -- Compare incentive density (rewards per dollar spent) across LTV quartiles
 SELECT
-    NTILE(4) OVER (ORDER BY ltv) AS ltv_quartile,
+    ltv_quartile,
     ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
     ROUND(AVG(cashback_received)::NUMERIC, 4) AS avg_cashback,
     ROUND(AVG(loyalty_points_earned)::NUMERIC, 2) AS avg_loyalty_pts,
@@ -116,9 +116,8 @@ SELECT
     -- Incentive density: rewards per $1 spent (are higher-LTV customers earning proportionally more or less?)
     ROUND((AVG(cashback_received) / NULLIF(AVG(total_spent), 0))::NUMERIC, 4) AS cashback_per_dollar,
     ROUND((AVG(loyalty_points_earned) / NULLIF(AVG(total_spent), 0))::NUMERIC, 4) AS loyalty_per_dollar
-FROM (
-    SELECT *, NTILE(4) OVER (ORDER BY ltv) AS ltv_q FROM fintech_ltv
-) t
+FROM fintech_ltv
+WHERE ltv IS NOT NULL
 GROUP BY ltv_quartile
 ORDER BY ltv_quartile DESC;
 

@@ -83,12 +83,12 @@ SELECT
         WHEN age BETWEEN 40 AND 50 THEN '40 - 50'
         WHEN age BETWEEN 50 AND 60 THEN '50 - 60'
         ELSE '60+'
-    END AS age_group,
+    END AS new_age_group,
     income_level,
     AVG(ltv) AS avg_ltv,
     COUNT(income_level) AS income_level_count
 FROM fintech_ltv
-GROUP BY age_group, income_level
+GROUP BY new_age_group, income_level
 ORDER BY avg_ltv DESC;
 
 -- Find The Customer's Average LTV by Location
@@ -158,11 +158,11 @@ ORDER BY segment_type, avg_ltv DESC;
 -- Key insight: demographics are NOT the driver of LTV — spending behaviour is.
 WITH quartiled AS (
     SELECT *,
-           NTILE(4) OVER (ORDER BY ltv) AS ltv_quartile
+           NTILE(4) OVER (ORDER BY ltv) AS calculated_quartile
     FROM fintech_ltv
 )
 SELECT
-    CASE WHEN ltv_quartile = 4 THEN 'Top 25% (High LTV)' ELSE 'Bottom 25% (Low LTV)' END AS ltv_segment,
+    CASE WHEN calculated_quartile = 4 THEN 'Top 25% (High LTV)' ELSE 'Bottom 25% (Low LTV)' END AS ltv_segment,
     ROUND(AVG(age)::NUMERIC, 1) AS avg_age,
     MODE() WITHIN GROUP (ORDER BY location) AS most_common_location,
     MODE() WITHIN GROUP (ORDER BY income_level) AS most_common_income,
@@ -171,6 +171,6 @@ SELECT
     ROUND(AVG(total_spent)::NUMERIC, 2) AS avg_total_spent,
     ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv
 FROM quartiled
-WHERE ltv_quartile IN (1, 4)
-GROUP BY ltv_quartile
-ORDER BY ltv_quartile DESC;
+WHERE calculated_quartile IN (1, 4)
+GROUP BY calculated_quartile
+ORDER BY calculated_quartile DESC;

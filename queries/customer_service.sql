@@ -105,15 +105,15 @@ ORDER BY resolution_time_per_dollar_spent DESC;
 -- Key insight — does customer satisfaction score PREDICT LTV, or is it independent?
 -- Cross-tabulation of satisfaction score vs. LTV quartile
 SELECT
-    NTILE(4) OVER (ORDER BY ltv) AS ltv_quartile_num,
+    ltv_quartile,
     ROUND(AVG(customer_satisfaction_score)::NUMERIC, 2) AS avg_satisfaction,
     ROUND(AVG(support_tickets_raised)::NUMERIC, 2) AS avg_tickets,
     ROUND(AVG(issue_resolution_time)::NUMERIC, 2) AS avg_resolution_time,
     ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
     COUNT(*) AS customer_count
-FROM (SELECT *, NTILE(4) OVER (ORDER BY ltv) AS ltv_q FROM fintech_ltv) t
-GROUP BY ltv_quartile_num
-ORDER BY ltv_quartile_num DESC;
+FROM fintech_ltv
+GROUP BY ltv_quartile
+ORDER BY ltv_quartile DESC;
 
 -- Service burden index — customers who are costly to serve relative to their LTV
 -- Flags customers generating high support load while contributing low LTV

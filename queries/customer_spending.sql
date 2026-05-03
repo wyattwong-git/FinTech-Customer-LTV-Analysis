@@ -119,13 +119,20 @@ ORDER BY avg_ltv DESC;
 
 -- Spending velocity — total spent per active day (identifies elite spenders regardless of tenure)
 -- Use this to find customers spending far above their activity level
+WITH velocity_calculation AS (
+    SELECT 
+        *,
+        -- Calculate velocity and assign quartiles in the first step
+        NTILE(4) OVER (ORDER BY CAST(total_spent AS DECIMAL) / NULLIF(active_days, 0)) AS velocity_quartile
+    FROM fintech_ltv
+)
 SELECT
-    NTILE(4) OVER (ORDER BY CAST(total_spent AS DECIMAL) / NULLIF(active_days, 0)) AS velocity_quartile,
+    velocity_quartile,
     ROUND(AVG(CAST(total_spent AS DECIMAL) / NULLIF(active_days, 0))::NUMERIC, 2) AS avg_spent_per_day,
     ROUND(AVG(ltv)::NUMERIC, 2) AS avg_ltv,
     ROUND(AVG(total_transactions)::NUMERIC, 2) AS avg_transactions,
     ROUND(AVG(active_days)::NUMERIC, 2) AS avg_active_days
-FROM fintech_ltv
+FROM velocity_calculation
 GROUP BY velocity_quartile
 ORDER BY velocity_quartile DESC;
 

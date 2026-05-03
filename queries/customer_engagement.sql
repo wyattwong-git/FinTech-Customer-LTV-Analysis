@@ -116,9 +116,9 @@ WITH rfm_scores AS (
         total_spent,
         total_transactions,
         last_transaction_days_ago,
-        NTILE(5) OVER (ORDER BY last_transaction_days_ago ASC) AS recency_score,   -- Lower days = more recent = higher score
-        NTILE(5) OVER (ORDER BY total_transactions DESC) AS frequency_score,
-        NTILE(5) OVER (ORDER BY total_spent DESC) AS monetary_score
+        NTILE(5) OVER (ORDER BY last_transaction_days_ago DESC) AS recency_score,   -- Lower days = more recent = higher score
+        NTILE(5) OVER (ORDER BY total_transactions ASC) AS frequency_score,
+        NTILE(5) OVER (ORDER BY total_spent ASC) AS monetary_score
     FROM fintech_ltv
 ),
 rfm_labeled AS (
@@ -131,7 +131,7 @@ SELECT
         WHEN rfm_total >= 13 THEN '⭐ Champions'
         WHEN rfm_total >= 10 THEN '✅ Loyal Customers'
         WHEN rfm_total >= 7  THEN '🔄 Potential Loyalists'
-        WHEN rfm_total >= 5  THEN '⚠️  At Risk'
+        WHEN rfm_total >= 5  THEN '⚠️ At Risk'
         ELSE '❌ Lost Customers'
     END AS rfm_segment,
     COUNT(*) AS customer_count,
