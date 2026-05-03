@@ -55,7 +55,7 @@ The core business questions this project addresses:
  
 | Tool | Purpose |
 |------|---------|
-| **Python (pandas, matplotlib, seaborn)** | Data cleaning, transformation, EDA, and visualisation |
+| **Python (pandas, matplotlib, seaborn)** | Data cleaning, transformation, EDA, and visualization |
 | **PostgreSQL + SQLAlchemy** | Structured querying and analytical segmentation |
 | **Jupyter Notebook** | End-to-end analysis walkthrough with embedded charts |
 | **Power BI** | Interactive dashboard for stakeholder reporting |
@@ -85,6 +85,8 @@ The EDA is split across six SQL files and a Jupyter notebook, structured to answ
 **`customer_incentives.sql` (Q3)** — Measured cashback and loyalty points as a rate per dollar spent across all LTV quartiles. The rate was statistically identical across all four tiers, confirming that incentive programs proportionally reward existing spend — they do not independently generate it. Referral count showed near-zero correlation with LTV (r ≈ 0.0).
  
 **`customer_service.sql` (Q3)** — Customer satisfaction (avg 5.4/10) and support ticket volume (avg ~10 per customer) were uniform across all LTV quartiles, meaning service quality neither explains high LTV nor predicts its absence. However, a "silent churner" segment — combine dormancy (40%), satisfaction score (35%), LTV (25%) into a risk score — represents the most at-risk LTV pool and the clearest proactive intervention opportunity.
+
+<img width="2579" height="1777" alt="image" src="https://github.com/user-attachments/assets/0ad25a17-c238-4f71-a1d7-e603d20ec3e3" />
  
 ---
 
