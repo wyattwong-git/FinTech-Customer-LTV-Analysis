@@ -11,7 +11,7 @@ Insights and recommendations are provided on the following key areas:
 - **LTV Measurement:** How to accurately measure and decompose customer LTV in a digital wallet context, and what the LTV formula actually captures
 - **Behavioural Drivers:** Which customer behaviours and engagement patterns most strongly distinguish high-LTV users from low-LTV users
 - **Segment Opportunities:** Which customer segments offer the greatest opportunity for LTV improvement through targeted operational or engagement interventions
-**Interactive Power BI Dashboard:** [Download .pbix](#) *(link once published)*
+**Interactive Power BI Dashboard:** [Download .pbix](#https://app.powerbi.com/groups/me/reports/2106d806-f4cc-4e52-844e-201bbe15a1d7/3967b0187017a0120d0d?experience=power-bi) *(link once published)*
  
 **Jump to section:**
 [Problem](#the-problem) · [Dataset](#dataset-information) · [Tools](#tools-used) · [Process](#process-walkthrough) · [Summary](#executive-summary) · [Recommendations](#business-recommendations)
